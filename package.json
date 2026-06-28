@@ -1,0 +1,30 @@
+{
+  "name": "@smiles/node-red-frank-energie",
+  "version": "1.0.0",
+  "description": "Node-RED nodes for Frank Energie GraphQL API under the smiles namespace",
+  "main": "frank-energie.js",
+  "scripts": {
+    "test": "node test/test-client.js"
+  },
+  "node-red": {
+    "nodes": {
+      "smiles-frank-energie-config": "frank-energie.js",
+      "smiles-frank-energie-prices": "frank-energie.js",
+      "smiles-frank-energie-consumption": "frank-energie.js",
+      "smiles-frank-energie-smart-controls": "frank-energie.js"
+    }
+  },
+  "keywords": [
+    "node-red",
+    "frank-energie",
+    "smiles",
+    "electricity",
+    "gas",
+    "prices"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}

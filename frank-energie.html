@@ -1,0 +1,411 @@
+<!-- 1. Configuration Node: smiles-frank-energie-config -->
+<script type="text/html" data-template-name="smiles-frank-energie-config">
+    <div class="form-row">
+        <label for="node-config-input-username"><i class="fa fa-envelope"></i> Email</label>
+        <input type="text" id="node-config-input-username" placeholder="Username (Email)" style="width: 70%;">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-password"><i class="fa fa-lock"></i> Password</label>
+        <input type="password" id="node-config-input-password" style="width: 70%;">
+    </div>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('smiles-frank-energie-config', {
+        category: 'config',
+        defaults: {
+            name: { value: "" }
+        },
+        credentials: {
+            username: { type: "text" },
+            password: { type: "password" }
+        },
+        label: function() {
+            return this.name || this.username || "Frank Energie Config";
+        }
+    });
+</script>
+
+
+<!-- 2. Prices Node: smiles-frank-energie-prices -->
+<script type="text/html" data-template-name="smiles-frank-energie-prices">
+    <div class="form-row">
+        <label for="node-input-config"><i class="fa fa-cog"></i> Config</label>
+        <input type="text" id="node-input-config" style="width: 70%;">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name" style="width: 70%;">
+    </div>
+
+    <div style="margin-top: 15px; margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+        <span style="font-weight: bold; color: #1f77b4;"><i class="fa fa-sliders"></i> Price Query Settings</span>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-date"><i class="fa fa-calendar"></i> Date</label>
+        <input type="text" id="node-input-date" placeholder="YYYY-MM-DD (Defaults to today)" style="width: 70%;">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-resolution"><i class="fa fa-clock-o"></i> Resolution</label>
+        <select id="node-input-resolution" style="width: 70%;">
+            <option value="PT60M">Hourly (PT60M)</option>
+            <option value="PT15M">Quarter-Hourly (PT15M)</option>
+        </select>
+    </div>
+
+    <div class="form-row" style="margin-top: 10px;">
+        <label for="node-input-useCustomerPrices" style="width: auto; margin-right: 10px;">
+            <i class="fa fa-user"></i> Retrieve Customer Prices?
+        </label>
+        <input type="checkbox" id="node-input-useCustomerPrices" style="display: inline-block; width: auto; vertical-align: top;">
+    </div>
+
+    <div id="customer-settings-section" style="background-color: #fcfcfc; border: 1px dashed #ddd; border-radius: 4px; padding: 12px; margin-top: 10px;">
+        <div style="font-weight: bold; font-size: 0.9em; margin-bottom: 8px; color: #666;">
+            <i class="fa fa-info-circle"></i> Customer Specific Configurations
+        </div>
+        <div class="form-row">
+            <label for="node-input-siteReference"><i class="fa fa-home"></i> Site Ref</label>
+            <input type="text" id="node-input-siteReference" placeholder="S-0000000 (Auto-resolve if blank)" style="width: 65%;">
+        </div>
+        <div class="form-row" style="margin-bottom: 0;">
+            <label for="node-input-userCountry"><i class="fa fa-globe"></i> Country</label>
+            <input type="text" id="node-input-userCountry" placeholder="NL (Auto-resolve if blank)" style="width: 65%;">
+        </div>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="smiles-frank-energie-prices">
+    <p>Queries dynamic energy prices from the Frank Energie GraphQL API.</p>
+    
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">payload.date <span class="property-type">string</span></dt>
+        <dd>The date to retrieve prices for (format: <code>YYYY-MM-DD</code>). Defaults to today if not provided.</dd>
+        
+        <dt class="optional">payload.resolution <span class="property-type">string</span></dt>
+        <dd>The resolution of dynamic pricing: <code>PT60M</code> (1 hour) or <code>PT15M</code> (15 mins).</dd>
+        
+        <dt class="optional">payload.useCustomerPrices <span class="property-type">boolean</span></dt>
+        <dd>Whether to fetch customer-specific prices (including dynamic markups/taxes) or public market prices.</dd>
+        
+        <dt class="optional">payload.siteReference <span class="property-type">string</span></dt>
+        <dd>Specific customer site reference. Auto-resolved from user profile if left blank.</dd>
+        
+        <dt class="optional">payload.userCountry <span class="property-type">string</span></dt>
+        <dd>Country code (e.g. <code>NL</code>, <code>BE</code>). Auto-resolved if left blank.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>The parsed GraphQL marketPrices or customerMarketPrices data matching the structure of Frank Energie response, containing:
+            <ul>
+                <li><code>averageElectricityPrices</code></li>
+                <li><code>electricityPrices</code></li>
+                <li><code>gasPrices</code></li>
+            </ul>
+        </dd>
+    </dl>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('smiles-frank-energie-prices', {
+        category: 'smiles',
+        color: '#ffc107',
+        defaults: {
+            name: { value: "" },
+            config: { type: "smiles-frank-energie-config", required: false },
+            date: { value: "" },
+            resolution: { value: "PT60M" },
+            useCustomerPrices: { value: false },
+            siteReference: { value: "" },
+            userCountry: { value: "NL" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "font-awesome/fa-bolt",
+        label: function() {
+            return this.name || (this.useCustomerPrices ? "My Frank Prices" : "Frank Market Prices");
+        },
+        oneditprepare: function() {
+            // Show/hide customer settings container based on the checkbox status
+            $("#node-input-useCustomerPrices").on("change", function() {
+                if ($(this).is(":checked")) {
+                    $("#customer-settings-section").slideDown(200);
+                } else {
+                    $("#customer-settings-section").slideUp(200);
+                }
+            });
+        }
+    });
+</script>
+
+
+<!-- 3. Consumption Node: smiles-frank-energie-consumption -->
+<script type="text/html" data-template-name="smiles-frank-energie-consumption">
+    <div class="form-row">
+        <label for="node-input-config"><i class="fa fa-cog"></i> Config</label>
+        <input type="text" id="node-input-config" style="width: 70%;">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name" style="width: 70%;">
+    </div>
+
+    <div style="margin-top: 15px; margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+        <span style="font-weight: bold; color: #1f77b4;"><i class="fa fa-line-chart"></i> Consumption Query Settings</span>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-action"><i class="fa fa-tasks"></i> Action</label>
+        <select id="node-input-action" style="width: 70%;">
+            <option value="periodUsageAndCosts">Period Usage & Costs (Gas/Elec)</option>
+            <option value="monthSummary">Month Summary (Overview)</option>
+            <option value="monthInsights">Month Insights (Detail)</option>
+            <option value="actualAndExpectedMeterReadings">Meter Readings (Daily - Deprecated/Unsupported)</option>
+        </select>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-siteReference"><i class="fa fa-home"></i> Site Ref</label>
+        <input type="text" id="node-input-siteReference" placeholder="S-0000000 (Auto-resolve if blank)" style="width: 70%;">
+    </div>
+
+    <div class="form-row" id="row-input-date">
+        <label for="node-input-date" id="label-input-date"><i class="fa fa-calendar"></i> Date</label>
+        <input type="text" id="node-input-date" placeholder="" style="width: 70%;">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="smiles-frank-energie-consumption">
+    <p>Fetches historical energy consumption, cost breakdowns, and smart meter readings from the Frank Energie GraphQL API.</p>
+    
+    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 8px; margin-bottom: 10px;">
+        <strong>Note:</strong> The <i>Meter Readings (Daily)</i> endpoint is known to cause <code>GraphQL validation errors</code> because the underlying schema query has been deprecated or removed by Frank Energie. Please use <strong>Period Usage & Costs</strong> instead to fetch detailed daily and hourly consumption.
+    </div>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">payload.action <span class="property-type">string</span></dt>
+        <dd>The action to execute:
+            <ul>
+                <li><code>periodUsageAndCosts</code></li>
+                <li><code>monthSummary</code></li>
+                <li><code>monthInsights</code></li>
+                <li><code>actualAndExpectedMeterReadings</code> (Deprecated)</li>
+            </ul>
+        </dd>
+        
+        <dt class="optional">payload.siteReference <span class="property-type">string</span></dt>
+        <dd>Specific site identifier. If blank, automatically resolves to the first site on the account.</dd>
+        
+        <dt class="optional">payload.date <span class="property-type">string</span></dt>
+        <dd>The target date string. Uses <code>YYYY-MM</code> for <i>Month Insights</i>, and <code>YYYY-MM-DD</code> or <code>YYYY</code> for <i>Period Usage & Costs</i>.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>The parsed JSON structure of the requested consumption action returned by Frank Energie.</dd>
+    </dl>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('smiles-frank-energie-consumption', {
+        category: 'smiles',
+        color: '#4a90e2',
+        defaults: {
+            name: { value: "" },
+            config: { type: "smiles-frank-energie-config", required: true },
+            action: { value: "periodUsageAndCosts" },
+            siteReference: { value: "" },
+            date: { value: "" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "font-awesome/fa-line-chart",
+        label: function() {
+            if (this.name) return this.name;
+            switch(this.action) {
+                case "actualAndExpectedMeterReadings": return "Frank Meter Readings";
+                case "monthSummary": return "Frank Month Summary";
+                case "monthInsights": return "Frank Month Insights";
+                case "periodUsageAndCosts": return "Frank Period Costs";
+                default: return "Frank Consumption";
+            }
+        },
+        oneditprepare: function() {
+            // Update placeholders & visibility depending on selected action
+            $("#node-input-action").on("change", function() {
+                const action = $(this).val();
+                if (action === "actualAndExpectedMeterReadings" || action === "monthSummary") {
+                    $("#row-input-date").slideUp(200);
+                } else {
+                    $("#row-input-date").slideDown(200);
+                    if (action === "monthInsights") {
+                        $("#label-input-date").html('<i class="fa fa-calendar"></i> Month');
+                        $("#node-input-date").attr("placeholder", "YYYY-MM (e.g. 2026-06)");
+                    } else {
+                        $("#label-input-date").html('<i class="fa fa-calendar"></i> Start Date');
+                        $("#node-input-date").attr("placeholder", "YYYY-MM-DD (e.g. 2026-06-01)");
+                    }
+                }
+            });
+        }
+    });
+</script>
+
+
+<!-- 4. Smart Controls Node: smiles-frank-energie-smart-controls -->
+<script type="text/html" data-template-name="smiles-frank-energie-smart-controls">
+    <div class="form-row">
+        <label for="node-input-config"><i class="fa fa-cog"></i> Config</label>
+        <input type="text" id="node-input-config" style="width: 70%;">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name" style="width: 70%;">
+    </div>
+
+    <div style="margin-top: 15px; margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+        <span style="font-weight: bold; color: #2ca02c;"><i class="fa fa-sliders"></i> Smart Control Settings</span>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-action"><i class="fa fa-tasks"></i> Action</label>
+        <select id="node-input-action" style="width: 70%;">
+            <optgroup label="Batteries">
+                <option value="getSmartBatteries">Get Batteries</option>
+                <option value="getSmartBatteryDetails">Get Battery Details</option>
+                <option value="updateSmartBatterySettings">Update Battery Settings</option>
+            </optgroup>
+            <optgroup label="Vehicles & Charging">
+                <option value="getEnodeVehicles">Get Enode Vehicles</option>
+                <option value="getEnodeChargers">Get Enode Chargers</option>
+                <option value="updateVehicleChargeSettings">Update Vehicle Charge Settings</option>
+                <option value="updateChargerChargeSettings">Update Charger Charge Settings</option>
+            </optgroup>
+            <optgroup label="HVAC">
+                <option value="getSmartHvacStatus">Get HVAC Status</option>
+                <option value="updateSmartHvacSettings">Update HVAC Settings</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="form-row" id="row-input-deviceId">
+        <label for="node-input-deviceId" id="label-input-deviceId"><i class="fa fa-id-card-o"></i> Device ID</label>
+        <input type="text" id="node-input-deviceId" placeholder="Device or Charge settings ID" style="width: 70%;">
+    </div>
+
+    <div class="form-row" id="row-input-siteRef">
+        <label for="node-input-siteReference"><i class="fa fa-home"></i> Site Ref</label>
+        <input type="text" id="node-input-siteReference" placeholder="S-0000000 (Auto-resolve if blank)" style="width: 70%;">
+    </div>
+
+    <div class="form-row" id="row-input-settings">
+        <label for="node-input-settings" style="vertical-align: top;"><i class="fa fa-code"></i> Settings</label>
+        <textarea id="node-input-settings" placeholder='{ "batteryMode": "SMART" }' style="width: 70%; height: 120px; font-family: monospace;"></textarea>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="smiles-frank-energie-smart-controls">
+    <p>Monitors and controls smart household assets connected to Frank Energie (Batteries, EV chargers, Vehicles, HVAC).</p>
+    
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">payload.action <span class="property-type">string</span></dt>
+        <dd>The action to execute (e.g. <code>getSmartBatteries</code>, <code>updateSmartBatterySettings</code>, etc.).</dd>
+        
+        <dt class="optional">payload.deviceId <span class="property-type">string</span></dt>
+        <dd>Target device or settings ID. Overrides the node's configuration field.</dd>
+        
+        <dt class="optional">payload.settings <span class="property-type">object</span></dt>
+        <dd>JSON object containing parameter changes to apply for update actions.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Response of the query or success/fail confirmation of the update mutation.</dd>
+    </dl>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('smiles-frank-energie-smart-controls', {
+        category: 'smiles',
+        color: '#2ca02c',
+        defaults: {
+            name: { value: "" },
+            config: { type: "smiles-frank-energie-config", required: true },
+            action: { value: "getSmartBatteries" },
+            deviceId: { value: "" },
+            siteReference: { value: "" },
+            settings: { value: "" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "font-awesome/fa-sliders",
+        label: function() {
+            if (this.name) return this.name;
+            switch(this.action) {
+                case "getSmartBatteries": return "Frank Batteries";
+                case "getSmartBatteryDetails": return "Frank Battery Details";
+                case "updateSmartBatterySettings": return "Update Frank Battery";
+                case "getEnodeVehicles": return "Frank EV Vehicles";
+                case "getEnodeChargers": return "Frank EV Chargers";
+                case "getSmartHvacStatus": return "Frank HVAC Status";
+                default: return "Frank Smart Controls";
+            }
+        },
+        oneditprepare: function() {
+            // Update fields visibility based on selected action
+            $("#node-input-action").on("change", function() {
+                const action = $(this).val();
+                
+                // Show deviceId only for actions that operate on specific devices
+                if (action === "getSmartBatteryDetails" || action === "updateSmartBatterySettings" || 
+                    action === "updateSmartHvacSettings" || action === "updateVehicleChargeSettings" || 
+                    action === "updateChargerChargeSettings") {
+                    $("#row-input-deviceId").slideDown(200);
+                    if (action.indexOf("Vehicle") !== -1 || action.indexOf("Charger") !== -1) {
+                        $("#label-input-deviceId").html('<i class="fa fa-id-card-o"></i> Settings ID');
+                    } else {
+                        $("#label-input-deviceId").html('<i class="fa fa-id-card-o"></i> Device ID');
+                    }
+                } else {
+                    $("#row-input-deviceId").slideUp(200);
+                }
+
+                // Show siteReference only for getEnodeChargers
+                if (action === "getEnodeChargers") {
+                    $("#row-input-siteRef").slideDown(200);
+                } else {
+                    $("#row-input-siteRef").slideUp(200);
+                }
+
+                // Show settings only for updates
+                if (action === "updateSmartBatterySettings" || action === "updateSmartHvacSettings" || 
+                    action === "updateVehicleChargeSettings" || action === "updateChargerChargeSettings") {
+                    $("#row-input-settings").slideDown(200);
+                    if (action === "updateSmartBatterySettings") {
+                        $("#node-input-settings").attr("placeholder", '{\n  "batteryMode": "SMART",\n  "imbalanceTradingStrategy": "MAXIMIZE_RESULT",\n  "selfConsumptionTradingThresholdPrice": 0.05\n}');
+                    } else if (action === "updateSmartHvacSettings") {
+                        $("#node-input-settings").attr("placeholder", '{\n  "mode": "SMART",\n  "temperatureLowerBound": 19.5,\n  "temperatureUpperBound": 22.0\n}');
+                    } else if (action === "updateVehicleChargeSettings") {
+                        $("#node-input-settings").attr("placeholder", '{\n  "isSmartChargingEnabled": true,\n  "maxChargeLimit": 80,\n  "minChargeLimit": 20\n}');
+                    } else {
+                        $("#node-input-settings").attr("placeholder", '{\n  "isSmartChargingEnabled": true,\n  "capacity": 7.4\n}');
+                    }
+                } else {
+                    $("#row-input-settings").slideUp(200);
+                }
+            });
+        }
+    });
+</script>
