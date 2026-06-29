@@ -1,4 +1,4 @@
-# @smiles/node-red-frank-energie
+# @smilesb/node-red-frank-energie
 
 A Node-RED node library under the `smiles` namespace that queries the **Frank Energie** GraphQL API. It is modeled after the Python library `HiDiHo01/python-frank-energie`.
 
@@ -18,7 +18,7 @@ A Node-RED node library under the `smiles` namespace that queries the **Frank En
 Run the following command in your Node-RED user directory (typically `~/.node-red`):
 
 ```bash
-npm install @smiles/node-red-frank-energie
+npm install @smilesb/node-red-frank-energie
 ```
 
 ---

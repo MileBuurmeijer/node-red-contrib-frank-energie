@@ -1,5 +1,5 @@
 {
-  "name": "@smiles/node-red-frank-energie",
+  "name": "@smilesb/node-red-frank-energie",
   "version": "1.0.0",
   "description": "Node-RED nodes for Frank Energie GraphQL API under the smiles namespace",
   "main": "frank-energie.js",

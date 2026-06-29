@@ -7,7 +7,7 @@ This document outlines the product definition, architecture, and node specificat
 ## 1. Namespace & Naming Conventions
 
 To ensure clean organization and avoid conflicts, all nodes in this library use the namespace **`smiles`**:
-* **NPM Package Name**: `@smiles/node-red-frank-energie`
+* **NPM Package Name**: `@smilesb/node-red-frank-energie`
 * **Node Palette Category**: `smiles` (nodes will be grouped under this category in the Node-RED editor)
 * **Node Types (Prefix)**: `smiles-frank-energie-*`
 
